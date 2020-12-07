@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        cxx: [g++-10, clang++-9]
+        cxx: [g++-10] # Need to add a clang with concept support. Clang 9 doesn't support concepts
         std: [20]
         build_type: [Debug]
 
@@ -64,35 +64,6 @@ jobs:
     - name: Build
       working-directory: ${{ runner.workspace }}/build
       run: ls && cmake --build . --config ${{ matrix.build_type }} -j2
-
-    - name: Run Tests
-      working-directory: ${{ runner.workspace }}/build
-      run: ctest -C ${{ matrix.build_type }} -VV
-
-  build-macos:
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        std: [20]
-        build_type: [Debug]
-
-    steps:
-    - name: Print Configuration
-      run: |
-        echo std=c++${{ matrix.std }}
-        cmake --version
-
-    - uses: actions/checkout@v2
-
-    - name: Configure
-      run: cmake -S. -B${{ runner.workspace }}/build
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-            -DCMAKE_CXX_STANDARD=${{ matrix.std }}
-
-    - name: Build
-      working-directory: ${{ runner.workspace }}/build
-      run: cmake --build . --config ${{ matrix.build_type }} -j2
 
     - name: Run Tests
       working-directory: ${{ runner.workspace }}/build
