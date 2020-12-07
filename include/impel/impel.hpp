@@ -62,7 +62,7 @@ namespace impel {
 
         friend detail::impl_self;
 
-        struct impl_t : public detail::find_impl_t<std::remove_cvref_t<T>, Trait> {
+        struct impl_t final : public detail::find_impl_t<std::remove_cvref_t<T>, Trait> {
         private:
             T it;
 
@@ -86,20 +86,20 @@ namespace impel {
             : it(std::forward<T>(val)) {
         }
 
-        constexpr Trait& get() requires std::same_as<T, T_&> {
-            return static_cast<Trait&>(it);
+        constexpr impl_t& get() requires std::same_as<T, T_&> {
+            return static_cast<impl_t&>(it);
         }
 
-        constexpr Trait const& get() const requires std::same_as<T, T_ const&> {
-            return static_cast<Trait const&>(it);
+        constexpr impl_t const& get() const requires std::same_as<T, T_ const&> {
+            return static_cast<impl_t const&>(it);
         }
 
-        constexpr Trait&& get() requires std::same_as<T, T_&&> {
-            return static_cast<Trait const&>(it);
+        constexpr impl_t&& get() requires std::same_as<T, T_&&> {
+            return static_cast<impl_t const&>(it);
         }
 
-        constexpr Trait const&& get() const requires std::same_as<T, T_ const&&> {
-            return static_cast<Trait const&>(it);
+        constexpr impl_t const&& get() const requires std::same_as<T, T_ const&&> {
+            return static_cast<impl_t const&>(it);
         }
 
         constexpr operator Trait&() requires std::same_as<T, T_&> {
