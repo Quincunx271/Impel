@@ -53,8 +53,13 @@ namespace {
         requires impel::impls<T, Inflatable>
     void inflate(T& it, int weight, int volume) {
         // clang-format on
-        auto infl = impel::impl<T&, Inflatable>(it);
+        auto impl = impel::impl<T&, Inflatable>(it);
+        auto& infl = impl.get();
         infl.inflate(weight, volume);
+    }
+
+    void inflate_dyn(Inflatable& it, int weight, int volume) {
+        it.inflate(weight, volume);
     }
 }
 
@@ -65,10 +70,16 @@ TEST_CASE("Explicit Specialization") {
     CHECK(b.volume == 20 + 20);
 }
 
-
 TEST_CASE("ADL Specialization") {
     ::ns::Balloon b {10, 20};
     ::inflate(b, 10, 20);
+    CHECK(b.weight == 10 + 10);
+    CHECK(b.volume == 20 + 20);
+}
+
+TEST_CASE("Dynamic polymorphism") {
+    ::Balloon b {10, 20};
+    ::inflate_dyn(impel::impl_of<Inflatable>(b), 10, 20);
     CHECK(b.weight == 10 + 10);
     CHECK(b.volume == 20 + 20);
 }
