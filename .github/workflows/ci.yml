@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        cxx: [g++-10, clang++-9]
+        std: [20]
+        build_type: [Debug]
+
+    steps:
+    - name: Print Configuration
+      run: |
+        ${{ matrix.cxx }} --version
+        echo std=c++${{ matrix.std }}
+        cmake --version
+
+    - uses: actions/checkout@v2
+
+    - name: Configure
+      run: cmake -S. -B${{ runner.workspace }}/build
+            -DPMM_URL=https://raw.githubusercontent.com/vector-of-bool/pmm/342ae926bd14689d5d2b627d4b74de979229d216/pmm/
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }}
+
+    - name: Build
+      working-directory: ${{ runner.workspace }}/build
+      run: cmake --build . --config ${{ matrix.build_type }} -j2
+
+    - name: Run Tests
+      working-directory: ${{ runner.workspace }}/build
+      run: ctest -C ${{ matrix.build_type }} -VV
+
+  build-windows:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        std: [20]
+        build_type: [Debug, Release]
+
+    steps:
+    - name: Print Configuration
+      run: |
+        echo std=c++${{ matrix.std }}
+        cmake --version
+
+    - uses: actions/checkout@v2
+
+    - name: Configure
+      run: cmake -S. -B${{ runner.workspace }}/build
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }}
+
+    - name: Build
+      working-directory: ${{ runner.workspace }}/build
+      run: ls && cmake --build . --config ${{ matrix.build_type }} -j2
+
+    - name: Run Tests
+      working-directory: ${{ runner.workspace }}/build
+      run: ctest -C ${{ matrix.build_type }} -VV
+
+  build-macos:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        std: [20]
+        build_type: [Debug]
+
+    steps:
+    - name: Print Configuration
+      run: |
+        echo std=c++${{ matrix.std }}
+        cmake --version
+
+    - uses: actions/checkout@v2
+
+    - name: Configure
+      run: cmake -S. -B${{ runner.workspace }}/build
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }}
+
+    - name: Build
+      working-directory: ${{ runner.workspace }}/build
+      run: cmake --build . --config ${{ matrix.build_type }} -j2
+
+    - name: Run Tests
+      working-directory: ${{ runner.workspace }}/build
+      run: ctest -C ${{ matrix.build_type }} -VV

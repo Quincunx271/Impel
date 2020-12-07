@@ -1,0 +1,4 @@
+[requires]
+
+[build_requires]
+catch2/2.13.3
