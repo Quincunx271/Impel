@@ -1,4 +1,0 @@
-[requires]
-
-[build_requires]
-Catch2/2.5.0@catchorg/stable

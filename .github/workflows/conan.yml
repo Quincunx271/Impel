@@ -1,0 +1,50 @@
+name: Conan
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  conan-package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Conan
+      run: |
+        sudo apt-get install python3-setuptools python3-wheel
+        pip3 install --user conan conan-package-tools
+        source ~/.profile
+        conan --version
+
+    - uses: actions/checkout@v2
+
+    - name: Configure Conan Package
+      id: config
+      shell: python
+      run: |
+        import os
+        import re
+
+        if '${{ github.event_name }}' == 'release':
+          ref = os.environ['GITHUB_REF']
+          assert ref.startswith('refs/tags/v')
+          version = ref[len('refs/tags/v'):]
+          assert re.match(r'\d+\.\d+\.\d+', version)
+          print('::set-output name=CONAN_VERSION::' + version)
+          print('::set-output name=CONAN_CHANNEL::stable')
+        else:
+          assert '${{ github.event_name }}' == 'push'
+          print('::set-output name=CONAN_VERSION::latest')
+          print('::set-output name=CONAN_CHANNEL::testing')
+
+    - name: Install Conan Package
+      run: python3 .conan/build.py
+      env:
+        CONAN_USERNAME: quincunx271
+        CONAN_PASSWORD: ${{ secrets.CONAN_PASSWORD }}
+        CONAN_VERSION: ${{ steps.config.outputs.CONAN_VERSION  }}
+        CONAN_CHANNEL: ${{ steps.config.outputs.CONAN_CHANNEL }}
+        SHOULD_UPLOAD_CONAN: 1
+        CXX: g++-10

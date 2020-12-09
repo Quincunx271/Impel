@@ -60,8 +60,8 @@ install(EXPORT Impel-Targets
   DESTINATION "${INSTALL_CONFIGDIR}"
 )
 
-install(DIRECTORY include/Impel/
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Impel"
+install(DIRECTORY include/impel/
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/impel"
   FILES_MATCHING PATTERN "*.hpp"
 )
 
@@ -76,5 +76,6 @@ write_basic_package_version_file(
 
 install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/ImpelConfigVersion.cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ImpelConfig.cmake"
   DESTINATION "${INSTALL_CONFIGDIR}"
 )
