@@ -15,6 +15,7 @@ set(IMPEL_DEVELOPER_DEFAULTS "${is_root_project}" CACHE BOOL "Default all option
 
 option(BUILD_TESTING "Enable testing" ${IMPEL_DEVELOPER_DEFAULTS})
 option(IMPEL_TEST_COLOR "Force test color" OFF)
+option(IMPEL_WARNINGS_AS_ERRORS "Turn on -Werror or equivalent" OFF)
 
 if(BUILD_TESTING)
   enable_testing()

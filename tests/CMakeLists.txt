@@ -1,9 +1,24 @@
 find_package(Catch2 REQUIRED)
 
 # Set up warnings / similar flags
-set(MSVC_flags /permissive-)
-set(Clang_flags -Wall -Wextra -Wpedantic)
-set(GNU_flags -Wall -Wextra -Wpedantic)
+set(werr ${IMPEL_WARNINGS_AS_ERRORS})
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+  add_compile_options(
+    /permissive- /W4
+    $<$<BOOL:${werr}>:/WX>
+  )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+  add_compile_options(
+    -Wall -Wextra -Wpedantic
+    $<$<BOOL:${werr}>:-Werror>
+  )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+  add_compile_options(
+    -Wall -Wextra -Wpedantic
+    $<$<BOOL:${werr}>:-Werror>
+  )
+endif()
 
 file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS "*.test.cpp")
 
@@ -12,10 +27,6 @@ target_link_libraries(test.Impel
   PRIVATE
     Impel::Impel
     Catch2::Catch2
-)
-target_compile_options(test.Impel
-  PRIVATE
-    ${${CMAKE_CXX_COMPILER_ID}_flags}
 )
 target_compile_features(test.Impel
   PRIVATE
