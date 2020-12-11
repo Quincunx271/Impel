@@ -156,21 +156,11 @@ namespace impel {
         }
 
     public:
-        constexpr member_t& get() & requires compatible_with<T_&> && (!std::is_reference_v<T>) {
+        constexpr member_t& get() requires compatible_with<T_&> {
             return it;
         }
 
-        constexpr member_t& get() requires compatible_with<T_&>&& std::is_reference_v<T> {
-            return it;
-        }
-
-        constexpr member_t const&
-            get() const& requires compatible_with<T_ const&> && (!std::is_reference_v<T>) {
-            return it;
-        }
-
-        constexpr member_t const& get() const
-            requires compatible_with<T_ const&>&& std::is_reference_v<T> {
+        constexpr member_t const& get() const requires compatible_with<T_ const&> {
             return it;
         }
 
@@ -182,21 +172,11 @@ namespace impel {
             return std::move(it);
         }
 
-        constexpr operator Trait&() & requires compatible_with<T_&> && (!std::is_reference_v<T>) {
+        constexpr operator Trait&() requires compatible_with<T_&> {
             return it;
         }
 
-        constexpr operator Trait&() requires compatible_with<T_&>&& std::is_reference_v<T> {
-            return it;
-        }
-
-        constexpr operator Trait const &()
-                const& requires compatible_with<T_ const&> && (!std::is_reference_v<T>) {
-            return it;
-        }
-
-        constexpr operator Trait const &() const
-            requires compatible_with<T_ const&>&& std::is_reference_v<T> {
+        constexpr operator Trait const &() const requires compatible_with<T_ const&> {
             return it;
         }
 
@@ -222,6 +202,40 @@ namespace impel {
     private:
         T it;
         detail::impl_t<T, Trait> impl_;
+
+    public:
+        // Keep default-constructible if T is.
+        constexpr impl()
+            : it()
+            , impl_(it) {
+        }
+
+        constexpr impl(impl const& rhs) noexcept(std::is_nothrow_copy_constructible_v<T>)
+            : it(rhs.it)
+            , impl_(it) {
+        }
+
+        constexpr impl(impl&& rhs) noexcept(std::is_nothrow_move_constructible_v<T>)
+            : it(std::move(rhs.it))
+            , impl_(it) {
+        }
+
+        constexpr impl& operator=(impl const& rhs) noexcept(std::is_nothrow_copy_assignable_v<T>) {
+            it = rhs.it;
+            impl_.it = &it;
+            return *this;
+        }
+
+        constexpr impl& operator=(impl&& rhs) noexcept(std::is_nothrow_move_assignable_v<T>) {
+            it = std::move(rhs.it);
+            impl_.it = &it;
+            return *this;
+        }
+
+        friend void swap(impl& lhs, impl& rhs) {
+            using std::swap;
+            swap(lhs.it, rhs.it);
+        }
 
     public:
         constexpr T& value() & {
@@ -274,12 +288,6 @@ namespace impel {
         }
 
     public:
-        // Keep default-constructible if T is.
-        constexpr impl()
-            : it()
-            , impl_(it) {
-        }
-
         template <typename U>
             // clang-format off
             requires (!std::same_as<std::remove_cvref_t<U>, impl>) && std::constructible_from<T, U&&>
