@@ -40,20 +40,40 @@ namespace ns {
 
     struct BalloonImpl : public Inflatable {
         void inflate(int weight, int volume) & final override {
-            Balloon& self = impel::self<Balloon&, Inflatable>(*this);
+            Balloon& self = impel::self<Balloon, Inflatable>(*this);
             self.weight += weight;
             self.volume += volume;
+        }
+    };
+
+    class DirectBalloon : public Inflatable {
+    public:
+        int weight = 0;
+        int volume = 0;
+
+        DirectBalloon() = default;
+
+        explicit DirectBalloon(int weight, int volume)
+            : weight(weight)
+            , volume(volume) {
+        }
+
+    public:
+        void inflate(int dweight, int dvolume) & final override {
+            weight += dweight;
+            volume += dvolume;
         }
     };
 }
 
 namespace {
-    template <typename T>
-    // clang-format off
-        requires impel::impls<T, Inflatable>
+#ifdef _MSC_VER // MSVC doesn't support shorthand syntax yet
+    template <impel::impls<Inflatable> T>
     void inflate(T& it, int weight, int volume) {
-        // clang-format on
-        auto impl = impel::impl<T&, Inflatable>(it);
+#else
+    void inflate(impel::impls<Inflatable> auto& it, int weight, int volume) {
+#endif
+        auto impl = impel::impl_ref<Inflatable>(it);
         auto& infl = impl.get();
         infl.inflate(weight, volume);
     }
@@ -68,6 +88,9 @@ TEST_CASE("Explicit Specialization") {
     ::inflate(b, 10, 20);
     CHECK(b.weight == 10 + 10);
     CHECK(b.volume == 20 + 20);
+
+    auto x = impel::impl<Balloon&, Inflatable>(b);
+    CHECK(&x.value() == &b);
 }
 
 TEST_CASE("ADL Specialization") {
@@ -75,11 +98,50 @@ TEST_CASE("ADL Specialization") {
     ::inflate(b, 10, 20);
     CHECK(b.weight == 10 + 10);
     CHECK(b.volume == 20 + 20);
+
+    auto x = impel::impl_ref<Inflatable>(b);
+    CHECK(&x.value() == &b);
+}
+
+TEST_CASE("Regular inheritance") {
+    ::ns::DirectBalloon b(10, 20);
+    ::inflate(b, 10, 20);
+    CHECK(b.weight == 10 + 10);
+    CHECK(b.volume == 20 + 20);
+
+    auto x = impel::impl_ref<Inflatable>(b);
+    CHECK(&x.value() == &b);
 }
 
 TEST_CASE("Dynamic polymorphism") {
     ::Balloon b {10, 20};
-    ::inflate_dyn(impel::impl_of<Inflatable>(b), 10, 20);
+    ::inflate_dyn(impel::impl_ref<Inflatable>(b), 10, 20);
     CHECK(b.weight == 10 + 10);
     CHECK(b.volume == 20 + 20);
+}
+
+TEST_CASE("impl<T, ...> for non-reference T") {
+    using impl_t = impel::impl<Balloon, Inflatable>;
+    // Why does this fail?
+    STATIC_REQUIRE(std::is_default_constructible_v<impl_t>);
+    STATIC_REQUIRE(std::is_constructible_v<impl_t, int&&, int&&>);
+    STATIC_REQUIRE(std::is_constructible_v<impl_t, int&&>);
+    STATIC_REQUIRE(std::is_constructible_v<impl_t, Balloon&&>);
+
+    impl_t impl(10, 20);
+    ::inflate_dyn(impl, 10, 20);
+    CHECK(impl.value().weight == 10 + 10);
+    CHECK(impl.value().volume == 20 + 20);
+}
+
+TEST_CASE("impl<T, ...> for non-reference T and regular inheritance") {
+    using impl_t = impel::impl<ns::DirectBalloon, Inflatable>;
+    STATIC_REQUIRE(std::is_default_constructible_v<impl_t>);
+    STATIC_REQUIRE(std::is_constructible_v<impl_t, int&&, int&&>);
+    STATIC_REQUIRE(std::is_constructible_v<impl_t, ns::DirectBalloon&&>);
+
+    impl_t impl(10, 20);
+    ::inflate_dyn(impl, 10, 20);
+    CHECK(impl.value().weight == 10 + 10);
+    CHECK(impl.value().volume == 20 + 20);
 }

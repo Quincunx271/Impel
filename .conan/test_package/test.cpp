@@ -29,6 +29,6 @@ void print(Printable const& p) {
 int main() {
     std::string const message = "Hello, World!";
 
-    ::print(impel::impl_of<Printable>(message));
+    ::print(impel::impl_ref<Printable>(message));
     std::cout << '\n';
 }
