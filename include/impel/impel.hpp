@@ -86,6 +86,84 @@ namespace impel {
                 : it(&ref) {
             }
         };
+
+        template <typename Derived, typename T, typename Trait>
+        class impl_accessors {
+        private:
+            using T_ = std::remove_cvref_t<T>;
+
+            template <typename Rhs>
+            static constexpr bool compatible_with = std::same_as<T, Rhs> || !std::is_reference_v<T>;
+
+            constexpr T const& get_value() const {
+                return static_cast<Derived const&>(*this).impl_value();
+            }
+
+            constexpr auto const& get_impl() const {
+                return static_cast<Derived const&>(*this).impl_get();
+            }
+
+        public:
+            constexpr T& value() & requires compatible_with<T_&> {
+                return const_cast<T&>(get_value());
+            }
+
+            constexpr T const& value() const& requires compatible_with<T_ const&> {
+                return get_value();
+            }
+
+            constexpr T&& value() && requires compatible_with<T_&&> {
+                return std::move(const_cast<T&>(get_value()));
+            }
+
+            constexpr T const&& value() const&& requires compatible_with<T_ const&&> {
+                return std::move(get_value());
+            }
+
+        public:
+            constexpr auto& get() & requires compatible_with<T_&> {
+                auto const& it = get_impl();
+                return const_cast<std::remove_cvref_t<decltype(it)>&>(it);
+            }
+
+            constexpr auto const& get() const& requires compatible_with<T_ const&> {
+                return get_impl();
+            }
+
+            constexpr auto&& get() && requires compatible_with<T_&&> {
+                auto const& it = get_impl();
+                return std::move(const_cast<std::remove_cvref_t<decltype(it)>&>(it));
+            }
+
+            constexpr auto const&& get() const&& requires compatible_with<T_ const&&> {
+                return std::move(get_impl());
+            }
+
+            constexpr operator Trait&() requires compatible_with<T_&>&& std::is_reference_v<T> {
+                return get();
+            }
+
+            constexpr operator Trait const &() const
+                requires compatible_with<T_ const&>&& std::is_reference_v<T> {
+                return get();
+            }
+
+            constexpr operator Trait&() & requires(!std::is_reference_v<T>) {
+                return get();
+            }
+
+            constexpr operator Trait const &() const& requires(!std::is_reference_v<T>) {
+                return get();
+            }
+
+            constexpr operator Trait&&() && requires compatible_with<T_&&> {
+                return std::move(*this).get();
+            }
+
+            constexpr operator Trait const &&() const&& requires compatible_with<T_ const&&> {
+                return std::move(*this).get();
+            }
+        };
     }
 
     template <typename T, typename Trait>
@@ -94,7 +172,7 @@ namespace impel {
         || detail::impls_via_inheritance<std::remove_cvref_t<T>, Trait>;
 
     template <typename T, typename Trait>
-    class impl {
+    class impl : public detail::impl_accessors<impl<T, Trait>, T, Trait> {
         // Non-references handled via partial specialization.
         static_assert(std::is_reference_v<T>);
 
@@ -113,79 +191,25 @@ namespace impel {
 
         member_t it;
 
-    public:
-        constexpr T& value()
-            & requires compatible_with<T_&>&& detail::impls_via_inheritance<T_, Trait> {
+        friend detail::impl_accessors<impl<T, Trait>, T, Trait>;
+
+        template <typename R, typename Member>
+        static constexpr R get_value(Member&& member) {
+            return static_cast<R>(const_cast<R>(*member.it));
+        }
+
+        template <typename R>
+        static constexpr R get_value(R member) requires detail::impls_via_inheritance<T_, Trait> {
+            static_assert(std::is_reference_v<R>);
+            return member;
+        }
+
+        constexpr T const& impl_value() const {
+            return get_value<T const&>(it);
+        }
+
+        constexpr auto const& impl_get() const {
             return it;
-        }
-
-        constexpr T const& value()
-            const& requires compatible_with<T_ const&>&& detail::impls_via_inheritance<T_, Trait> {
-            return it;
-        }
-
-        constexpr T&& value()
-            && requires compatible_with<T_&&>&& detail::impls_via_inheritance<T_, Trait> {
-            return std::move(it);
-        }
-
-        constexpr T const&&
-        value() const&& requires compatible_with<T_ const&&>&& detail::impls_via_inheritance<T_,
-            Trait> {
-            return std::move(it);
-        }
-
-        constexpr T& value()
-                & requires compatible_with<T_&> && (!detail::impls_via_inheritance<T_, Trait>) {
-            return const_cast<T&>(*it.it);
-        }
-
-        constexpr T const& value() const& requires compatible_with<
-            T_ const&> && (!detail::impls_via_inheritance<T_, Trait>) {
-            return *it.it;
-        }
-
-        constexpr T&& value()
-            && requires compatible_with<T_&&> && (!detail::impls_via_inheritance<T_, Trait>) {
-            return *std::move(it.it);
-        }
-
-        constexpr T const&& value() const&& requires compatible_with<
-            T_ const&&> && (!detail::impls_via_inheritance<T_, Trait>) {
-            return *std::move(it.it);
-        }
-
-    public:
-        constexpr member_t& get() requires compatible_with<T_&> {
-            return it;
-        }
-
-        constexpr member_t const& get() const requires compatible_with<T_ const&> {
-            return it;
-        }
-
-        constexpr member_t&& get() && requires compatible_with<T_&&> {
-            return std::move(it);
-        }
-
-        constexpr member_t const&& get() const&& requires compatible_with<T_ const&&> {
-            return std::move(it);
-        }
-
-        constexpr operator Trait&() requires compatible_with<T_&> {
-            return it;
-        }
-
-        constexpr operator Trait const &() const requires compatible_with<T_ const&> {
-            return it;
-        }
-
-        constexpr operator Trait&&() && requires compatible_with<T_&&> {
-            return std::move(it);
-        }
-
-        constexpr operator Trait const &&() const&& requires compatible_with<T_ const&&> {
-            return std::move(it);
         }
 
     public:
@@ -197,11 +221,21 @@ namespace impel {
     template <typename T, typename Trait>
         // clang-format off
         requires (!std::is_reference_v<T>) && (!detail::impls_via_inheritance<T, Trait>)
-    class impl<T, Trait> {
+    class impl<T, Trait> : public detail::impl_accessors<impl<T, Trait>, T, Trait> {
         // clang-format on
     private:
+        friend detail::impl_accessors<impl<T, Trait>, T, Trait>;
+
         T it;
         detail::impl_t<T, Trait> impl_;
+
+        constexpr T const& impl_value() const {
+            return it;
+        }
+
+        constexpr auto const& impl_get() const {
+            return impl_;
+        }
 
     public:
         // Keep default-constructible if T is.
@@ -238,56 +272,6 @@ namespace impel {
         }
 
     public:
-        constexpr T& value() & {
-            return it;
-        }
-
-        constexpr T const& value() const& {
-            return it;
-        }
-
-        constexpr T&& value() && {
-            return std::move(it);
-        }
-
-        constexpr T const&& value() const&& {
-            return std::move(it);
-        }
-
-    public:
-        constexpr auto get() & -> detail::impl_t<T, Trait>& {
-            return impl_;
-        }
-
-        constexpr auto get() const& -> detail::impl_t<T, Trait> const& {
-            return impl_;
-        }
-
-        constexpr auto get() && -> detail::impl_t<T, Trait>&& {
-            return std::move(impl_);
-        }
-
-        constexpr auto get() const&& -> detail::impl_t<T, Trait> const&& {
-            return std::move(impl_);
-        }
-
-        constexpr operator Trait&() & {
-            return get();
-        }
-
-        constexpr operator Trait const &() const& {
-            return get();
-        }
-
-        constexpr operator Trait&&() && {
-            return std::move(*this).get();
-        }
-
-        constexpr operator Trait const &&() const&& {
-            return std::move(*this).get();
-        }
-
-    public:
         template <typename U>
             // clang-format off
             requires (!std::same_as<std::remove_cvref_t<U>, impl>) && std::constructible_from<T, U&&>
@@ -311,59 +295,19 @@ namespace impel {
     template <typename T, typename Trait>
         // clang-format off
         requires (!std::is_reference_v<T>) && detail::impls_via_inheritance<T, Trait>
-    class impl<T, Trait> {
+    class impl<T, Trait> : public detail::impl_accessors<impl<T, Trait>, T, Trait> {
         // clang-format on
     private:
+        friend detail::impl_accessors<impl<T, Trait>, T, Trait>;
+
         T it;
 
-    public:
-        constexpr T& value() & {
+        constexpr T const& impl_value() const {
             return it;
         }
 
-        constexpr T const& value() const& {
+        constexpr auto const& impl_get() const {
             return it;
-        }
-
-        constexpr T&& value() && {
-            return std::move(it);
-        }
-
-        constexpr T const&& value() const&& {
-            return std::move(it);
-        }
-
-    public:
-        constexpr auto get() & -> T& {
-            return it;
-        }
-
-        constexpr auto get() const& -> T const& {
-            return it;
-        }
-
-        constexpr auto get() && -> T&& {
-            return std::move(it);
-        }
-
-        constexpr auto get() const&& -> T const&& {
-            return std::move(it);
-        }
-
-        constexpr operator Trait&() & {
-            return get();
-        }
-
-        constexpr operator Trait const &() const& {
-            return get();
-        }
-
-        constexpr operator Trait&&() && {
-            return std::move(*this).get();
-        }
-
-        constexpr operator Trait const &&() const&& {
-            return std::move(*this).get();
         }
 
     public:

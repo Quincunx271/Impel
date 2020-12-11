@@ -129,6 +129,9 @@ TEST_CASE("impl<T, ...> for non-reference T") {
     STATIC_REQUIRE(std::is_constructible_v<impl_t, Balloon&&>);
 
     impl_t impl(10, 20);
+#ifndef _MSC_VER // MSVC breaks here for some reason
+    STATIC_REQUIRE(requires { std::move(impl).get(); });
+#endif
     ::inflate_dyn(impl, 10, 20);
     CHECK(impl.value().weight == 10 + 10);
     CHECK(impl.value().volume == 20 + 20);
